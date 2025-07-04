@@ -1,33 +1,44 @@
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const express = require("express");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
+const uploadDir = path.join(__dirname, "../public/uploads");
 
+// Hakikisha uploads folder ipo
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Set multer storage config
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const dir = path.join(__dirname, "../public");
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-    cb(null, dir);
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
+    const uniqueName = Date.now() + "-" + file.originalname;
     cb(null, uniqueName);
   }
 });
 
 const upload = multer({ storage });
 
-app.post('/api/upload', upload.single('file'), (req, res) => {
-  const file = req.file;
-  if (!file) return res.status(400).json({ error: "No file uploaded" });
+// Ruhusu files zitolewe publicly
+app.use("/uploads", express.static(uploadDir));
 
-  const baseUrl = req.headers['x-forwarded-host'] || req.headers.host;
-  const fileUrl = `https://${baseUrl}/public/${file.filename}`;
+// API endpoint
+app.post("/api/upload", upload.single("image"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
 
-  res.json({ url: fileUrl });
+  const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+  res.json({ url: imageUrl });
 });
 
-module.exports = app;
-  
+// ⚠️ Muhimu kwa Render: Fungua port
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("✅ Server running on port", PORT);
+});
